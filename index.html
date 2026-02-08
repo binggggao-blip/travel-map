@@ -1,367 +1,390 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh">
 <head>
-  <meta charset="UTF-8">
-  <title>我的旅行足迹地图</title>
-  <style>
-    body { margin: 0; background: #f4f4f4; font-family: "Microsoft YaHei"; }
-    #map { width: 100%; height: 100vh; }
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>我的旅行足迹地图</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: "Microsoft YaHei", sans-serif;
+            background: #f5f7fa;
+            color: #333;
+        }
+        #main {
+            width: 100%;
+            height: 100vh;
+            position: relative;
+        }
 
-    .info-box {
-      position: fixed;
-      top: 10px; right: 10px;
-      background: rgba(255,255,255,0.95);
-      padding: 10px 12px;
-      border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.2);
-      z-index: 20;
-    }
-    .info-box button {
-      display: block;
-      width: 100%;
-      margin-top: 6px;
-      padding: 6px 10px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 14px;
-    }
+        /* 控制面板 */
+        .control-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+        }
+        .control-panel h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        .control-panel button {
+            margin: 5px;
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            background: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .control-panel button:hover {
+            background: #f0f0f0;
+        }
 
-    .tooltip-box {
-      position: absolute;
-      background: rgba(255,255,255,0.96);
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      padding: 10px;
-      display: none;
-      pointer-events: auto;
-      max-width: 260px;
-      box-shadow: 0 0 8px rgba(0,0,0,0.3);
-      z-index: 10;
-      transition: opacity 0.25s ease;
-    }
-    .tooltip-box img {
-      width: 100%;
-      border-radius: 6px;
-      margin-top: 6px;
-    }
-    .tooltip-box button {
-      margin-top: 6px;
-      padding: 4px 8px;
-      background: #007bff;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-    }
+        /* 详情弹窗 */
+        .detail-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            max-width: 90%;
+            max-height: 90%;
+            overflow: auto;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .modal-title {
+            font-size: 20px;
+            margin: 0 0 15px;
+            color: #333;
+        }
+        .modal-image {
+            max-width: 100%;
+            max-height: 60vh;
+            border-radius: 8px;
+            object-fit: contain;
+        }
+        .modal-actions {
+            margin-top: 15px;
+        }
+        .modal-actions button {
+            padding: 8px 16px;
+            margin: 0 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .add-btn {
+            background: #52c41a;
+            color: white;
+        }
+        .upload-btn {
+            background: #fa8c16;
+            color: white;
+        }
+        .close-btn {
+            background: #f0f0f0;
+            color: #333;
+        }
+        .add-btn:hover { background: #49a90d; }
+        .upload-btn:hover { background: #d46b08; }
+        .close-btn:hover { background: #e0e0e0; }
 
-    .edit-modal {
-      position: fixed;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      background: #fff;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 0 20px rgba(0,0,0,0.4);
-      width: 320px;
-      display: none;
-      z-index: 100;
-    }
-    .edit-modal input, .edit-modal textarea {
-      width: 100%;
-      margin-bottom: 8px;
-      padding: 6px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-    }
-    .edit-modal button {
-      margin-top: 5px;
-      padding: 6px 12px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-    #save-btn { background: #28a745; color: white; }
-    #cancel-btn { background: #aaa; color: white; margin-left: 10px; }
-  </style>
+        @media (max-width: 600px) {
+            .modal-content {
+                padding: 15px;
+            }
+            .modal-title {
+                font-size: 18px;
+            }
+            .modal-actions button {
+                padding: 6px 12px;
+                font-size: 13px;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div id="map"></div>
-  <div class="info-box">
-    <button id="login-btn">进入编辑模式</button>
-    <button id="logout-btn" style="display:none;">退出编辑模式</button>
-    <button id="reset-btn" style="display:none;">重置所有记录</button>
-    <button id="export-btn" style="display:none;">导出记录</button>
-    <input type="file" id="import-file" style="display:none;">
-    <button id="import-btn" style="display:none;">导入记录</button>
-  </div>
-  <div id="tooltip" class="tooltip-box"></div>
+    <!-- 地图容器 -->
+    <div id="main"></div>
 
-  <div id="edit-modal" class="edit-modal">
-    <h3>编辑旅行记录</h3>
-    <input type="text" id="edit-country" readonly>
-    <textarea id="edit-desc" rows="3" placeholder="写下你的旅行感受..."></textarea>
-    <input type="file" id="edit-image">
-    <button id="save-btn">保存</button>
-    <button id="cancel-btn">取消</button>
-  </div>
+    <!-- 控制面板 -->
+    <div class="control-panel">
+        <h3>我的旅行足迹地图</h3>
+        <button id="resetBtn">重置所有数据</button>
+        <button id="exportBtn">导出数据</button>
+        <button id="importBtn">导入数据</button>
+    </div>
 
-  <script src="style.js"></script>
-  <script src="map.js"></script>
-  <script>
-    const ADMIN_PASS = atob("MTIzNDU2");
+    <!-- 详情弹窗 -->
+    <div class="detail-modal" id="detailModal">
+        <div class="modal-content">
+            <h3 class="modal-title" id="modalAreaName">区域名称</h3>
+            <img 
+                class="modal-image" 
+                id="modalImage" 
+                src="https://via.placeholder.com/600x400/e0e0e0/999999?text=点击“上传图片”自定义"
+                alt="区域图片"
+            />
+            <div class="modal-actions">
+                <button class="add-btn" id="addToFootprintBtn">添加到足迹</button>
+                <button class="upload-btn" id="uploadPictureBtn">上传图片</button>
+                <button class="close-btn" id="closeDetailModal">关闭</button>
+            </div>
+            <!-- 隐藏文件输入 -->
+            <input type="file" id="imageUploadInput" accept="image/*" style="display:none;" />
+        </div>
+    </div>
 
-    const myChart = echarts.init(document.getElementById('map'));
-    const tooltip = document.getElementById('tooltip');
-    const modal = document.getElementById('edit-modal');
+    <!-- 引入 ECharts 和地图 -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="map_with_china_districts.js"></script>
 
-    const loginBtn = document.getElementById('login-btn');
-    const logoutBtn = document.getElementById('logout-btn');
-    const resetBtn = document.getElementById('reset-btn');
-    const exportBtn = document.getElementById('export-btn');
-    const importBtn = document.getElementById('import-btn');
-    const importFile = document.getElementById('import-file');
+    <script>
+        // ========== 全局数据 ==========
+        let travelRecords = JSON.parse(localStorage.getItem('travelRecords') || '[]');
+        let customAreaImages = JSON.parse(localStorage.getItem('customAreaImages') || '{}');
+        let currentClickedArea = null;
 
-    let travelInfo = JSON.parse(localStorage.getItem('travelInfo')) || {};
-    let visited = JSON.parse(localStorage.getItem('visited')) || {};
-    let fixedCountry = null;
-    let editMode = localStorage.getItem('editMode') === 'true';
+        // ========== 初始化 ECharts ==========
+        const myChart = echarts.init(document.getElementById('main'));
 
-    function updateUI() {
-      const show = editMode ? 'block' : 'none';
-      loginBtn.style.display = editMode ? 'none' : 'block';
-      logoutBtn.style.display = show;
-      resetBtn.style.display = show;
-      exportBtn.style.display = show;
-      importBtn.style.display = show;
-    }
-    updateUI();
-
-    function saveToLocal() {
-      localStorage.setItem('travelInfo', JSON.stringify(travelInfo));
-      localStorage.setItem('visited', JSON.stringify(visited));
-    }
-
-    function getRandomColor() {
-      const letters = '89ABCDEF';
-      let color = '#';
-      for (let i = 0; i < 6; i++) color += letters[Math.floor(Math.random() * letters.length)];
-      return color;
-    }
-
-    const option = {
-      tooltip: { show: false },
-      series: [{
-        name: 'world',
-        type: 'map',
-        map: 'world',
-        roam: true,
-        zoom: 1.2,
-        label: { show: false },
-        itemStyle: {
-          normal: { areaColor: '#f8f8f8', borderColor: '#aaa' },
-          emphasis: { areaColor: '#e0e0e0' }
-        },
-        data: []
-      }]
-    };
-    myChart.setOption(option);
-
-    function updateMap() {
-      myChart.setOption({
-        series: [{
-          data: Object.keys(visited).map(k => ({
-            name: k,
-            itemStyle: { areaColor: visited[k] }
-          }))
-        }]
-      });
-    }
-    updateMap();
-
-    // 单击：选中/取消
-    myChart.on('click', function (params) {
-      if (!editMode) return;
-      const name = params.name;
-
-      if (fixedCountry === name) {
-        delete visited[name];
-        saveToLocal();
-        updateMap();
-        tooltip.style.display = 'none';
-        fixedCountry = null;
-        return;
-      }
-
-      visited[name] = visited[name] || getRandomColor();
-      updateMap();
-      saveToLocal();
-      showTooltip(name, params.event.offsetX, params.event.offsetY);
-      fixedCountry = name;
-    });
-
-    // 双击：居中放大
-    myChart.on('dblclick', function (params) {
-      if (!editMode) return;
-      myChart.dispatchAction({
-        type: 'geoRoam',
-        zoom: 1.8,
-        originX: params.event.offsetX,
-        originY: params.event.offsetY
-      });
-    });
-
-    // 右键删除
-    myChart.getZr().on('contextmenu', function (event) {
-      if (!editMode) return;
-      event.preventDefault();
-      const pointInPixel = [event.offsetX, event.offsetY];
-      if (myChart.containPixel({ seriesIndex: 0 }, pointInPixel)) {
-        const geo = myChart.getModel().getSeriesByIndex(0).coordinateSystem;
-        const coord = myChart.convertFromPixel({ seriesIndex: 0 }, pointInPixel);
-        const region = geo.getRegionByCoord(coord);
-        const name = region ? region.name : null;
-        if (name && visited[name]) {
-          if (confirm(`确定删除 ${name} 的旅行记录吗？`)) {
-            delete visited[name];
-            delete travelInfo[name];
-            saveToLocal();
-            updateMap();
-            tooltip.style.display = 'none';
-            fixedCountry = null;
-          }
-        }
-      }
-    });
-
-    // 空白点击关闭弹窗
-    myChart.getZr().on('click', function (event) {
-      const pointInPixel = [event.offsetX, event.offsetY];
-      if (!myChart.containPixel({ seriesIndex: 0 }, pointInPixel)) {
-        tooltip.style.display = 'none';
-        fixedCountry = null;
-      }
-    });
-
-    // 悬浮提示
-    myChart.on('mouseover', function (params) {
-      if (!fixedCountry) showTooltip(params.name, params.event.offsetX, params.event.offsetY);
-    });
-    myChart.on('mouseout', function () {
-      if (!fixedCountry) tooltip.style.display = 'none';
-    });
-
-    function showTooltip(name, x, y) {
-      const info = travelInfo[name];
-      const editButton = editMode
-        ? `<button onclick="openEditor('${name}')">编辑</button>`
-        : '';
-      tooltip.innerHTML = `
-        <strong>${name}</strong><br>
-        <p>${info ? info.desc : (editMode ? '点击编辑旅行记录' : '等待探索')}</p>
-        ${info && info.img ? `<img src="${info.img}" alt="${name}">` : ''}
-        ${editButton}
-      `;
-      tooltip.style.left = x + 20 + 'px';
-      tooltip.style.top = y + 20 + 'px';
-      tooltip.style.opacity = 0;
-      tooltip.style.display = 'block';
-      setTimeout(() => tooltip.style.opacity = 1, 10);
-    }
-
-    window.openEditor = function (name) {
-      const info = travelInfo[name] || { desc: '', img: '' };
-      document.getElementById('edit-country').value = name;
-      document.getElementById('edit-desc').value = info.desc;
-      document.getElementById('edit-image').value = '';
-      modal.style.display = 'block';
-    };
-
-    document.getElementById('save-btn').onclick = () => {
-      const name = document.getElementById('edit-country').value;
-      const desc = document.getElementById('edit-desc').value;
-      const file = document.getElementById('edit-image').files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = e => {
-          travelInfo[name] = { desc, img: e.target.result };
-          saveToLocal();
-          modal.style.display = 'none';
-          if (fixedCountry === name)
-            showTooltip(name, parseInt(tooltip.style.left), parseInt(tooltip.style.top));
-        };
-        reader.readAsDataURL(file);
-      } else {
-        travelInfo[name] = { desc, img: travelInfo[name]?.img || '' };
-        saveToLocal();
-        modal.style.display = 'none';
-        if (fixedCountry === name)
-          showTooltip(name, parseInt(tooltip.style.left), parseInt(tooltip.style.top));
-      }
-    };
-    document.getElementById('cancel-btn').onclick = () => modal.style.display = 'none';
-
-    // 导出 JSON
-    exportBtn.onclick = () => {
-      const data = { visited, travelInfo };
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = '我的旅行足迹.json';
-      a.click();
-      URL.revokeObjectURL(url);
-    };
-
-    // 导入 JSON
-    importBtn.onclick = () => importFile.click();
-    importFile.onchange = e => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = e => {
+        // 提取所有区域名
+        const allAreas = [];
         try {
-          const data = JSON.parse(e.target.result);
-          visited = data.visited || {};
-          travelInfo = data.travelInfo || {};
-          saveToLocal();
-          updateMap();
-          alert("成功导入旅行数据！");
-        } catch {
-          alert("导入失败，请检查文件格式！");
+            const mapData = echarts.getMap('world');
+            if (mapData && mapData.geoJson?.features) {
+                mapData.geoJson.features.forEach(f => {
+                    if (f.properties?.name) {
+                        allAreas.push(f.properties.name);
+                    }
+                });
+            }
+        } catch (e) {
+            console.warn('无法加载区域列表');
         }
-      };
-      reader.readAsText(file);
-    };
 
-    // 重置
-    resetBtn.onclick = () => {
-      if (confirm("确定清空所有旅行记录？")) {
-        localStorage.clear();
-        travelInfo = {};
-        visited = {};
-        fixedCountry = null;
-        updateMap();
-        tooltip.style.display = 'none';
-      }
-    };
+        function generateMapData() {
+            return allAreas.map(name => {
+                const record = travelRecords.find(r => r.name === name);
+                return { name, value: record ? record.count : 0 };
+            });
+        }
 
-    // 登录 / 退出
-    loginBtn.onclick = () => {
-      const input = prompt("请输入管理员密码：");
-      if (input === ADMIN_PASS) {
-        editMode = true;
-        localStorage.setItem('editMode', 'true');
-        updateUI();
-        alert("已进入编辑模式");
-      } else if (input) alert("密码错误");
-    };
-    logoutBtn.onclick = () => {
-      editMode = false;
-      localStorage.setItem('editMode', 'false');
-      updateUI();
-      alert("已退出编辑模式");
-    };
-  </script>
+        // ========== ECharts 配置（含悬浮图片预览）==========
+        const option = {
+            tooltip: {
+                trigger: 'item',
+                confine: true,
+                extraCssText: `
+                    max-width: 300px;
+                    white-space: normal;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    border-radius: 8px;
+                    padding: 0;
+                    border: none;
+                `,
+                formatter: function(params) {
+                    if (!params.name) return '';
+                    
+                    // 获取图片：优先用户上传，其次默认占位图
+                    const imgUrl = customAreaImages[params.name] || 
+                        'https://via.placeholder.com/200x130/e0e0e0/999999?text=暂无自定义图';
+                    
+                    return `
+                        <div style="text-align:center; padding:8px; min-width:120px;">
+                            <div style="font-weight:bold; margin-bottom:6px; font-size:14px;">${params.name}</div>
+                            <img 
+                                src="${imgUrl}" 
+                                style="width:200px; max-width:100%; height:auto; border-radius:6px; display:block; margin:0 auto;"
+                                onerror="this.onerror=null; this.src='https://via.placeholder.com/200x130/e0e0e0/999999?text=加载失败';"
+                            >
+                        </div>
+                    `;
+                }
+            },
+            visualMap: {
+                show: false,
+                min: 0,
+                max: 10,
+                inRange: {
+                    color: ['#f0f0f0', '#5470c6']
+                }
+            },
+            series: [{
+                type: 'map',
+                map: 'world',
+                roam: true,
+                zoom: 1.2,
+                center: [105, 38],
+                label: {
+                    show: false,
+                    emphasis: { show: true, color: '#333' }
+                },
+                itemStyle: {
+                    areaColor: '#f0f0f0',
+                    borderColor: '#ccc',
+                    borderWidth: 0.5
+                },
+                emphasis: {
+                    itemStyle: {
+                        areaColor: '#e6f7ff',
+                        borderColor: '#1890ff'
+                    }
+                },
+                data: generateMapData()
+            }]
+        };
+
+        myChart.setOption(option);
+        window.addEventListener('resize', () => myChart.resize());
+
+        // ========== 弹窗控制 ==========
+        function openDetailModal(areaName) {
+            currentClickedArea = areaName;
+            document.getElementById('modalAreaName').textContent = areaName;
+            const imgUrl = customAreaImages[areaName] || 
+                'https://via.placeholder.com/600x400/e0e0e0/999999?text=点击“上传图片”自定义';
+            document.getElementById('modalImage').src = imgUrl;
+            document.getElementById('detailModal').style.display = 'flex';
+        }
+
+        function closeDetailModal() {
+            document.getElementById('detailModal').style.display = 'none';
+            currentClickedArea = null;
+        }
+
+        // ========== 功能 ==========
+        function addToFootprint(areaName) {
+            const existing = travelRecords.find(r => r.name === areaName);
+            if (existing) existing.count++;
+            else travelRecords.push({ name: areaName, count: 1 });
+            localStorage.setItem('travelRecords', JSON.stringify(travelRecords));
+            myChart.setOption({ series: [{ data: generateMapData() }] });
+            alert(`✅ 已将 ${areaName} 添加到足迹！`);
+        }
+
+        function uploadPictureForArea(areaName) {
+            const input = document.getElementById('imageUploadInput');
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                if (!file.type.startsWith('image/')) {
+                    alert('❌ 请选择图片文件（JPG/PNG/GIF）');
+                    return;
+                }
+                if (file.size > 2 * 1024 * 1024) {
+                    if (!confirm('图片超过 2MB，可能影响性能，是否继续？')) return;
+                }
+                const reader = new FileReader();
+                reader.onload = () => {
+                    customAreaImages[areaName] = reader.result;
+                    localStorage.setItem('customAreaImages', JSON.stringify(customAreaImages));
+                    document.getElementById('modalImage').src = reader.result;
+                    alert(`✅ ${areaName} 的图片已保存！`);
+                };
+                reader.readAsDataURL(file);
+                input.value = '';
+            };
+            input.click();
+        }
+
+        // ========== 事件绑定 ==========
+        myChart.on('click', (params) => {
+            if (params.name) openDetailModal(params.name);
+        });
+
+        document.getElementById('addToFootprintBtn').onclick = () => {
+            if (currentClickedArea) {
+                addToFootprint(currentClickedArea);
+                closeDetailModal();
+            }
+        };
+
+        document.getElementById('uploadPictureBtn').onclick = () => {
+            if (currentClickedArea) {
+                uploadPictureForArea(currentClickedArea);
+            }
+        };
+
+        document.getElementById('closeDetailModal').onclick = closeDetailModal;
+
+        document.getElementById('detailModal').onclick = (e) => {
+            if (e.target === document.getElementById('detailModal')) {
+                closeDetailModal();
+            }
+        };
+
+        // ========== 控制面板 ==========
+        document.getElementById('resetBtn').onclick = () => {
+            if (confirm('⚠️ 确定重置所有足迹记录和自定义图片？此操作不可恢复！')) {
+                travelRecords = [];
+                customAreaImages = {};
+                localStorage.removeItem('travelRecords');
+                localStorage.removeItem('customAreaImages');
+                myChart.setOption({ series: [{ data: generateMapData() }] });
+                alert('✅ 已重置所有数据');
+            }
+        };
+
+        document.getElementById('exportBtn').onclick = () => {
+            const data = { travelRecords, customAreaImages };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'my_travel_map_data.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        };
+
+        document.getElementById('importBtn').onclick = () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = () => {
+                    try {
+                        const data = JSON.parse(reader.result);
+                        if (Array.isArray(data.travelRecords) && typeof data.customAreaImages === 'object' && data.customAreaImages !== null) {
+                            travelRecords = data.travelRecords;
+                            customAreaImages = data.customAreaImages;
+                            localStorage.setItem('travelRecords', JSON.stringify(travelRecords));
+                            localStorage.setItem('customAreaImages', JSON.stringify(customAreaImages));
+                            myChart.setOption({ series: [{ data: generateMapData() }] });
+                            alert('✅ 数据导入成功！');
+                        } else {
+                            throw new Error('格式错误');
+                        }
+                    } catch (err) {
+                        alert('❌ 导入失败：请使用“导出数据”生成的文件。');
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        };
+    </script>
 </body>
 </html>
